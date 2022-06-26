@@ -1,6 +1,7 @@
 # deb-setup-gui
-Written for Debain  
-GUI for setting up system basics (networking and timezone)
+Written for Debain  (which includes "whiptail" as default which draws the GUI menus)  
+GUI for setting up system basics (networking and timezone)  
+Can easily be adapted to any other Distro. 
 
 Please check the code to ensure you know what it is going to be doing.  
 Use at your own risk.
