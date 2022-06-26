@@ -81,7 +81,7 @@ select_int(){
 	int=$(whiptail \
 	    --backtitle "$txtbacktitle" \
 	    --title "Network Interface Selection" \
-	    --radiolist "Select the network interface to configure:" \
+	    --radiolist "\nSelect the network interface to configure:\n\n Use \"spacebar\" to select" \
 	    0 0 0 \
 	    "${options[@]}" \
 	    3>&1 1>&2 2>&3)
@@ -89,7 +89,16 @@ select_int(){
 	exitstatus="$?"
 
 	if [[ "${exitstatus}" == "0" ]]; then
-		get_ip
+		if [[ -z "$int" ]]; then
+			whiptail --backtitle "$txtbacktitle" \
+			--title "${txtinvalid}" \
+			--msgbox "\nPlease try again...\n\nAn Interface must be selected!" \
+			0 0
+
+			menu
+		else
+			get_ip
+		fi
 	else
 		menu
 	fi
