@@ -1,8 +1,9 @@
 # deb-setup-gui
 Written for Debain  
 Which includes "whiptail" by default to display dialog boxes from shell scripts  
-GUI for setting up system basics (networking and timezone)  
-Can easily be adapted to any other Distro. 
+
+This is a GUI script for setting up system basics, such as networking and timezone.  
+It can easily be adapted to any other Distro. 
 
 Please check the code to ensure you know what it is going to be doing.  
 Use at your own risk.
