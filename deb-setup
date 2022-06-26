@@ -17,8 +17,6 @@ set_variables(){
 	dns=""
 	hostname=""
 	domain=""
-	ntp1=""
-	ntp2=""
 
 	txtbacktitle="System Configuration"
 	txtmainmenu="Main Menu"
@@ -77,7 +75,9 @@ get_ip(){
 	ip=$(whiptail \
 			--backtitle "$txtbacktitle" \
 			--title "$txtnetwork" \
-			--inputbox "IP Address:" 0 0 \
+			--inputbox "IP Address:" \
+			0 0 \
+			"$ip" \
 			3>&1 1>&2 2>&3)
 
 	exitstatus="$?"
@@ -97,7 +97,9 @@ get_subnet(){
 	subnet=$(whiptail \
 			--backtitle "$txtbacktitle" \
 			--title "$txtnetwork" \
-			--inputbox "Subnet must input in CIDR slash notation e.g /24\n\nSubnet Mask:" 0 0 \
+			--inputbox "Subnet must input in CIDR slash notation e.g /24\n\nSubnet Mask:" \
+			0 0 \
+			"$subnet" \
 			3>&1 1>&2 2>&3)
 
 	exitstatus="$?"
@@ -117,7 +119,9 @@ get_gateway(){
 	gateway=$(whiptail \
 			--backtitle "$txtbacktitle" \
 			--title "$txtnetwork" \
-			--inputbox "Gateway Address:" 0 0 \
+			--inputbox "Gateway Address:" \
+			0 0 \
+			"$gateway" \
 			3>&1 1>&2 2>&3)
 
 	exitstatus="$?"
@@ -137,12 +141,63 @@ get_dns(){
 	dns=$(whiptail \
 			--backtitle "$txtbacktitle" \
 			--title "$txtnetwork" \
-			--inputbox "DNS Address:" 0 0 \
+			--inputbox "DNS Address:" \
+			0 0 \
+			"$dns" \
 			3>&1 1>&2 2>&3)
 
 	exitstatus="$?"
 
 	if [[ "${exitstatus}" == "0" ]]; then
+		get_hostname
+	else
+		menu
+	fi
+
+}
+
+get_hostname(){
+
+	local exitstatus
+
+	hostname=$(whiptail \
+			--backtitle "$txtbacktitle" \
+			--title "$txtnetwork" \
+			--inputbox "Hostname:" \
+			0 0 \
+			"$hostname" \
+			3>&1 1>&2 2>&3)
+
+	exitstatus="$?"
+
+	if [[ "${exitstatus}" == "0" ]]; then
+		get_domain
+	else
+		menu
+	fi
+
+}
+
+get_domain(){
+
+	local exitstatus
+
+	domain=$(whiptail \
+			--backtitle "$txtbacktitle" \
+			--title "$txtnetwork" \
+			--inputbox "Domain:" \
+			0 0 \
+			"$domain" \
+			3>&1 1>&2 2>&3)
+
+	exitstatus="$?"
+
+	if [[ "${exitstatus}" == "0" ]]; then
+		check_network_info
+		if [[ "$ipresult" == "0" && "$subnetresult" == "0" && "$gatewayresult" == "0" && "$dnsresult" == "0" && "$hostnameresult" == "0" && "$domainresult" == "0" ]]; then
+			echo ""
+			#configure_network
+		fi
 		menu
 	else
 		menu
@@ -344,3 +399,11 @@ check_network_info(){
 
 set_variables
 menu
+
+#Testing
+echo "IP: $ip"
+echo "Subnet: $subnet"
+echo "Gateway: $gateway"
+echo "DNS: $dns"
+echo "Hostname: $hostname"
+echo "Domain: $domain"
