@@ -112,7 +112,7 @@ get_ip(){
 	ip=$(whiptail \
 			--backtitle "$txtbacktitle" \
 			--title "$txtnetwork" \
-			--inputbox "IP Address:" \
+			--inputbox "\nIP Address:" \
 			0 0 \
 			"$ip" \
 			3>&1 1>&2 2>&3)
@@ -134,7 +134,7 @@ get_subnet(){
 	subnet=$(whiptail \
 			--backtitle "$txtbacktitle" \
 			--title "$txtnetwork" \
-			--inputbox "Subnet must input in CIDR slash notation e.g /24\n\nSubnet Mask:" \
+			--inputbox "\nNOTE: The subnet mask must be in CIDR format e.g. \"/24\"\n\nSubnet Mask:" \
 			0 0 \
 			"$subnet" \
 			3>&1 1>&2 2>&3)
@@ -156,7 +156,7 @@ get_gateway(){
 	gateway=$(whiptail \
 			--backtitle "$txtbacktitle" \
 			--title "$txtnetwork" \
-			--inputbox "Gateway Address:" \
+			--inputbox "\nGateway Address:" \
 			0 0 \
 			"$gateway" \
 			3>&1 1>&2 2>&3)
@@ -178,7 +178,7 @@ get_dns(){
 	dns=$(whiptail \
 			--backtitle "$txtbacktitle" \
 			--title "$txtnetwork" \
-			--inputbox "DNS Address:" \
+			--inputbox "\nDNS Address:" \
 			0 0 \
 			"$dns" \
 			3>&1 1>&2 2>&3)
@@ -200,7 +200,7 @@ get_hostname(){
 	hostname=$(whiptail \
 			--backtitle "$txtbacktitle" \
 			--title "$txtnetwork" \
-			--inputbox "Hostname:" \
+			--inputbox "\nHostname:" \
 			0 0 \
 			"$hostname" \
 			3>&1 1>&2 2>&3)
@@ -222,7 +222,7 @@ get_domain(){
 	domain=$(whiptail \
 			--backtitle "$txtbacktitle" \
 			--title "$txtnetwork" \
-			--inputbox "Domain:" \
+			--inputbox "\nDomain:" \
 			0 0 \
 			"$domain" \
 			3>&1 1>&2 2>&3)
@@ -327,7 +327,6 @@ EOF
 ############################
 
 	if sudo systemctl restart networking; then
-		sleep 1
 
 		whiptail \
 		--backtitle "$txtbacktitle" \
