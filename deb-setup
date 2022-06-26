@@ -22,6 +22,7 @@ set_variables(){
 	txtmainmenu="Main Menu"
 	txtnetwork="Network Configuration"
 	txttimezone="Time Zone Configuration"
+	txtconfirm="Confirmation"
 	txtinvalid="Invalid"
 	txtfailed="Failed"
 	txtexit="Exit"
@@ -32,11 +33,9 @@ menu(){
 
 	local exitstatus
 	local selection
-	local getip
 	local gettimezone
 	local getdatetime
 
-	getip=$(ip address | grep ens | grep inet | cut -d' ' -f6 | cut -d'/' -f1)
 	gettimezone=$(timedatectl | grep Time | sed -n -e 's/^.*Time zone://p')
 	getdatetime=$(date -R)
 
@@ -44,8 +43,7 @@ menu(){
 			--backtitle "$txtbacktitle" \
 			--title "$txtmainmenu" \
 			--cancel-button "$txtexit" \
-			--menu "\n System IP Address    : ${getip}\n \
-System Time Zone     :${gettimezone}\n \
+			--menu "\n System Time Zone     :${gettimezone}\n \
 System Date and Time : ${getdatetime}\n " \
 			0 0 0 \
 			"Network Configuration" "" \
@@ -57,7 +55,7 @@ System Date and Time : ${getdatetime}\n " \
 	if [[ "${exitstatus}" == "0" ]]; then
 		case ${selection} in
 			"Network Configuration")
-				get_ip
+				select_int
 			;;
 			"Time Zone Configuration")
 				configure_timezone
@@ -66,6 +64,36 @@ System Date and Time : ${getdatetime}\n " \
 	else
 		clear
 	fi
+}
+
+select_int(){
+
+	local exitstatus
+	local interfaces
+	local options
+	interfaces=$(netstat -i | grep '^[a-z]' | awk '{print $1}' | grep -v 'lo')
+	options=()
+
+	for interfaces in ${interfaces}; do
+	  options+=("${interfaces}" "" "off")
+	done
+
+	int=$(whiptail \
+	    --backtitle "$txtbacktitle" \
+	    --title "Network Interface Selection" \
+	    --radiolist "Select the network interface to configure:" \
+	    0 0 0 \
+	    "${options[@]}" \
+	    3>&1 1>&2 2>&3)
+
+	exitstatus="$?"
+
+	if [[ "${exitstatus}" == "0" ]]; then
+		get_ip
+	else
+		menu
+	fi
+
 }
 
 get_ip(){
@@ -195,9 +223,37 @@ get_domain(){
 	if [[ "${exitstatus}" == "0" ]]; then
 		check_network_info
 		if [[ "$ipresult" == "0" && "$subnetresult" == "0" && "$gatewayresult" == "0" && "$dnsresult" == "0" && "$hostnameresult" == "0" && "$domainresult" == "0" ]]; then
-			echo ""
-			#configure_network
+			confirm_network
 		fi
+	else
+		menu
+	fi
+
+}
+
+confirm_network(){
+
+	local exitstatus
+
+	whiptail \
+	--backtitle "$txtbacktitle" \
+	--title "$txtconfirm" \
+	--yes-button "OK" \
+	--no-button "Cancel" \
+	--yesno "\nConfirm your selections:\n\n \
+Interface : $int\n \
+IP        : $ip\n \
+Subnet    : $subnet\n \
+Gateway   : $gateway\n \
+DNS       : $dns\n \
+Hostname  : $hostname\n \
+Domain    : $domain\n " \
+	0 0
+
+	exitstatus="$?"
+
+	if [[ "${exitstatus}" == "0" ]]; then
+		configure_network
 		menu
 	else
 		menu
@@ -237,8 +293,6 @@ auto ${int}
 iface ${int} inet static
 address ${ip}${subnet}
 gateway ${gateway}
-dns-nameservers ${dns}
-dns-search ${domain}
 EOF
 
 sudo hostnamectl set-hostname ${hostname} > /dev/null
@@ -252,6 +306,11 @@ ${ip}           ${hostname}.${domain}   ${hostname}
 ::1     localhost ip6-localhost ip6-loopback
 ff02::1 ip6-allnodes
 ff02::2 ip6-allrouters
+EOF
+
+tee /etc/resolv.conf > /dev/null << EOF
+search $domain
+nameserver $dns
 EOF
 
 ############################
@@ -399,11 +458,3 @@ check_network_info(){
 
 set_variables
 menu
-
-#Testing
-echo "IP: $ip"
-echo "Subnet: $subnet"
-echo "Gateway: $gateway"
-echo "DNS: $dns"
-echo "Hostname: $hostname"
-echo "Domain: $domain"
