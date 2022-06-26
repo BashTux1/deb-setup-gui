@@ -1,5 +1,6 @@
 # deb-setup-gui
-Written for Debain  (which includes "whiptail" as default which draws the GUI menus)  
+Written for Debain  
+Which includes "whiptail" by default to display dialog boxes from shell scripts  
 GUI for setting up system basics (networking and timezone)  
 Can easily be adapted to any other Distro. 
 
