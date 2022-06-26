@@ -1,0 +1,346 @@
+#!/usr/bin/env bash
+
+trap "ctrl_c" INT
+
+ctrl_c(){
+
+	clear
+	exit 1
+
+}
+
+set_variables(){
+
+	ip=""
+	subnet="/24"
+	gateway=""
+	dns=""
+	hostname=""
+	domain=""
+	ntp1=""
+	ntp2=""
+
+	txtbacktitle="System Configuration"
+	txtmainmenu="Main Menu"
+	txtnetwork="Network Configuration"
+	txttimezone="Time Zone Configuration"
+	txtinvalid="Invalid"
+	txtfailed="Failed"
+	txtexit="Exit"
+
+}
+
+menu(){
+
+	local exitstatus
+	local selection
+	local getip
+	local gettimezone
+	local getdatetime
+
+	getip=$(ip address | grep ens | grep inet | cut -d' ' -f6 | cut -d'/' -f1)
+	gettimezone=$(timedatectl | grep Time | sed -n -e 's/^.*Time zone://p')
+	getdatetime=$(date -R)
+
+	selection=$(whiptail \
+			--backtitle "$txtbacktitle" \
+			--title "$txtmainmenu" \
+			--cancel-button "$txtexit" \
+			--menu "\n System IP Address    : ${getip}\n \
+System Time Zone     :${gettimezone}\n \
+System Date and Time : ${getdatetime}\n " \
+			0 0 0 \
+			"Network Configuration" "" \
+			"Time Zone Configuration" "" \
+			3>&1 1>&2 2>&3)
+
+	exitstatus="$?"
+
+	if [[ "${exitstatus}" == "0" ]]; then
+		case ${selection} in
+			"Network Configuration")
+				get_ip
+			;;
+			"Time Zone Configuration")
+				configure_timezone
+			;;
+		esac
+	else
+		clear
+	fi
+}
+
+get_ip(){
+
+	local exitstatus
+
+	ip=$(whiptail \
+			--backtitle "$txtbacktitle" \
+			--title "$txtnetwork" \
+			--inputbox "IP Address:" 0 0 \
+			3>&1 1>&2 2>&3)
+
+	exitstatus="$?"
+
+	if [[ "${exitstatus}" == "0" ]]; then
+		get_subnet
+	else
+		menu
+	fi
+
+}
+
+get_subnet(){
+
+	local exitstatus
+
+	subnet=$(whiptail \
+			--backtitle "$txtbacktitle" \
+			--title "$txtnetwork" \
+			--inputbox "Subnet must input in CIDR slash notation e.g /24\n\nSubnet Mask:" 0 0 \
+			3>&1 1>&2 2>&3)
+
+	exitstatus="$?"
+
+	if [[ "${exitstatus}" == "0" ]]; then
+		get_gateway
+	else
+		menu
+	fi
+
+}
+
+get_gateway(){
+
+	local exitstatus
+
+	gateway=$(whiptail \
+			--backtitle "$txtbacktitle" \
+			--title "$txtnetwork" \
+			--inputbox "Gateway Address:" 0 0 \
+			3>&1 1>&2 2>&3)
+
+	exitstatus="$?"
+
+	if [[ "${exitstatus}" == "0" ]]; then
+		get_dns
+	else
+		menu
+	fi
+
+}
+
+get_dns(){
+
+	local exitstatus
+
+	dns=$(whiptail \
+			--backtitle "$txtbacktitle" \
+			--title "$txtnetwork" \
+			--inputbox "DNS Address:" 0 0 \
+			3>&1 1>&2 2>&3)
+
+	exitstatus="$?"
+
+	if [[ "${exitstatus}" == "0" ]]; then
+		menu
+	else
+		menu
+	fi
+
+}
+
+configure_network(){
+
+	whiptail --backtitle "$txtbacktitle" \
+	--infobox "\n\nApplying Network Configuration...please wait\n\n" \
+	0 0
+
+	local interfaces
+	local int
+	interfaces=$(netstat -i | grep '^[a-z]' | awk '{print $1}' | grep -v 'lo')
+	int=$(echo "${interfaces}" | head -1)
+
+###################
+# Stop networking #
+###################
+
+	sudo systemctl stop networking
+
+######################
+# Install new config #
+######################
+
+tee /etc/network/interfaces > /dev/null << EOF
+source /etc/network/interfaces.d/*
+
+#INTERFACE LOOPBACK
+auto lo
+iface lo inet loopback
+
+auto ${int}
+iface ${int} inet static
+address ${ip}${subnet}
+gateway ${gateway}
+dns-nameservers ${dns}
+dns-search ${domain}
+EOF
+
+sudo hostnamectl set-hostname ${hostname} > /dev/null
+
+tee /etc/hosts > /dev/null << EOF
+127.0.0.1       localhost
+127.0.1.1       ${hostname}
+${ip}           ${hostname}.${domain}   ${hostname}
+
+# The following lines are desirable for IPv6 capable hosts
+::1     localhost ip6-localhost ip6-loopback
+ff02::1 ip6-allnodes
+ff02::2 ip6-allrouters
+EOF
+
+############################
+# Restart network services #
+############################
+
+	if sudo systemctl restart networking; then
+		sleep 1
+
+		whiptail \
+		--backtitle "$txtbacktitle" \
+		--title "$txtnetwork" \
+		--msgbox "\n\nNetwork Configuration successfully applied\n" \
+		0 0
+	else
+		whiptail \
+		--backtitle "$txtbacktitle" \
+		--title "$txtfailed" \
+		--msgbox "\n\nAn error occurred please try again\n" \
+		0 0
+	fi
+
+}
+
+configure_timezone(){
+
+	local tzselect
+	local gettimezone
+	local getdatetime
+
+	clear
+	tzselect=$(tzselect)
+
+	sudo timedatectl set-timezone $tzselect
+
+	gettimezone=$(timedatectl | grep Time | sed -n -e 's/^.*Time zone://p')
+	getdatetime=$(date -R)
+
+	whiptail \
+	--backtitle "$txtbacktitle" \
+	--title "$txttimezone" \
+	--msgbox "\n\nNew system Time Zone is     :${gettimezone}\nNew system Date and Time is : ${getdatetime}\n " \
+	0 0
+
+	menu
+
+}
+
+is_valid_ip() {
+
+	local result
+	result=$(grep -Eo '^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$' <<< "${1}")
+	if [[ ${#result} -eq 0 ]]; then
+		false
+	else
+		true
+	fi
+}
+
+is_valid_mask() {
+
+	local result
+	result=$(grep -Eo '^(\/([0-9]|[1-2][0-9]|3[0-2]))?$' <<< "${1}")
+	if [[ ${#result} -eq 0 ]]; then
+		false
+	else
+		true
+	fi
+}
+
+check_network_info(){
+
+	if ! is_valid_ip "${ip}"; then
+		whiptail \
+		--backtitle "$txtbacktitle" \
+		--title "${txtinvalid}" \
+		--msgbox "\nPlease try again...\n\nThe IP you entered is not a valid IP address!" \
+		0 0
+
+		ipresult="1"
+	else
+		ipresult="0"
+	fi
+
+	if ! is_valid_mask "${subnet}"; then
+		whiptail \
+		--backtitle "$txtbacktitle" \
+		--title "${txtinvalid}" \
+		--msgbox "\nPlease try again...\n\nThe Subnet Mask you entered is not a valid CIDR entry!" \
+		0 0
+
+		subnetresult="1"
+	else
+		subnetresult="0"
+	fi
+
+	if ! is_valid_ip "${gateway}"; then
+		whiptail \
+		--backtitle "$txtbacktitle" \
+		--title "${txtinvalid}" \
+		--msgbox "\nPlease try again...\n\nThe Gateway IP you entered is not a valid IP address!" \
+		0 0
+
+		gatewayresult="1"
+	else
+		gatewayresult="0"
+	fi
+
+	if ! is_valid_ip "${dns}"; then
+		whiptail \
+		--backtitle "$txtbacktitle" \
+		--title "${txtinvalid}" \
+		--msgbox "\nPlease try again...\n\nThe DNS IP you entered is not a valid IP address!" \
+		0 0
+
+		dnsresult="1"
+	else
+		dnsresult="0"
+	fi
+
+	if [[ -z "$hostname" ]]; then
+		whiptail --backtitle "$txtbacktitle" \
+		--title "${txtinvalid}" \
+		--msgbox "\nPlease try again...\n\nThe Hostname can't be empty!" \
+		0 0
+
+		hostnameresult="1"
+	else
+		hostnameresult="0"
+	fi
+
+	if [[ -z "$domain" ]]; then
+		whiptail \
+		--backtitle "$txtbacktitle" \
+		--title "${txtinvalid}" \
+		--msgbox "\nPlease try again...\n\nThe Domain can't be empty!" \
+		0 0
+
+		domainresult="1"
+	else
+		domainresult="0"
+	fi
+
+}
+
+set_variables
+menu
